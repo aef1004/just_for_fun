@@ -1,0 +1,104 @@
+---
+title: "Car Depreciation"
+author: "Amy Fox"
+date: "2/19/2020"
+output: html_document
+---
+
+
+All data was retreived from https://usedfirst.com/cars/
+
+Here are some brief descriptions of the columns:
+
+- Year - The vehicle model year.
+- New Price - The geometric mean new price paid of that model year grouped by most the popular trim levels.
+- Current Price - The geometric mean listing price of a used model of that year grouped by the same trim levels.
+- Maintenance - Estimated maintenance and repair costs during that year of ownership.
+- $ Decline - Year over Year price decline.
+- % Decline - Year over Year percentage of decline.
+- % Paid - Percentage paid of the original price.
+- % Left - Percentage left of reliable years of the vehicle.
+- Years Left - Current industry average of years remaining with predictable maintenance and repair costs.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(readxl)
+library(purrr)
+library(dplyr)
+library(tidyverse)
+```
+
+```{r}
+
+car_files <- list.files("./Data/car_depreciation", full.names = TRUE)
+
+car_filename <- data.frame(car_files)
+
+
+
+mutate(file_contents = map(car_filename, ~read_xlsx(car_files)))
+
+# this reads in all the files but I want to add a filename
+map(car_files, read_xlsx) %>%
+  reduce(rbind)
+
+
+  mutate(file_contents = map(filename,          # read files into
+           ~ read_csv(file.path(data_path, .))) # a new data column
+        )
+
+data <- files %>%
+  # read in all the files, appending the path before the filename
+  map(~ read_csv(file.path(data_path, .))) %>% 
+  reduce(rbind)
+```
+
+
+```{r}
+# try with mine
+
+data_path <- "./Data/car_depreciation"   # path to the data
+files <- dir(data_path, pattern = "*.xlsx") # get file names
+
+level_key <- c(`honda-cr-v-depreciation.xlsx` = "Honda CRV",
+               `hyundai-tucson-depreciation.xlsx`= "Hyundia Tucson",
+               "mazda-cx-5-depreciation.xlsx" = "Mazda CX5",
+               "nissan-rogue-depreciation.xlsx" = "Nissan Rogue",
+               "toyota-rav4-depreciation.xlsx" = "Toyota Rav4")
+
+car_data <- data_frame(filename = files) %>% # create a data frame with filenames
+  mutate(file_contents = map(filename,          # read files into
+           ~ read_xlsx(file.path(data_path, .))) # a new data column
+        )  %>%
+  unnest() %>%
+  mutate(filename = recode(filename, !!!level_key)) %>%
+  filter(!str_detect(Year, 'source'))
+
+
+unique(car_data$Year)
+
+
+ggplot(car_data, aes(x =factor(`Year`, levels = c(2019:2007)), y = `Current Price`, color = filename, 
+                     group = filename)) +
+  geom_point() +
+  geom_path() +
+  ggtitle("Car Price by Year") +
+  xlab("Year") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_y_continuous(breaks=c(5000, 10000, 15000, 20000, 25000, 30000))
+
+
+ggplot(car_data, aes(x =factor(`Year`, levels = c(2019:2007)), y = `Percent Paid`, color = filename, 
+                     group = filename)) +
+  geom_point() +
+  geom_path() +
+  ggtitle("Depreciation of Vehicle") +
+  xlab("Year") +
+  theme(axis.text.x = element_text(angle = 90)) 
+```
+
+Based on the data it looks like it doesn't make sense to get a 2017 because the price is almost the same as a 2018.

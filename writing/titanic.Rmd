@@ -1,0 +1,135 @@
+---
+title: "titanic"
+output: html_document
+---
+
+Titanic kaggle data : https://www.kaggle.com/c/titanic
+
+Titanic example: https://trevorstephens.com/kaggle-titanic-tutorial/getting-started-with-r/
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warnings = FALSE)
+```
+
+Load packages
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+```
+
+Read in data
+```{r}
+training <- read_csv("./Data/Titanic/train.csv")
+testing <- read_csv("./Data/Titanic/test.csv")
+
+training <- training %>%
+  separate(Name, into = c("last_name", "first_name"), sep = ",") %>%
+  separate(first_name, into = c("title", "first_name2"), sep = "\\.")
+```
+
+0 - Died
+1 - Survived
+
+# Prediction 1 - everyone dies
+```{r}
+# see the number of people who survived and died
+table(training$Survived)
+
+# see the proportion of people who survived and died
+prop.table(table(training$Survived))
+
+# add column to testing data with prediction that everyone died
+testing_p1 <- testing %>%
+  mutate(Survived = rep(0, 418))
+
+submit1 <- data.frame(PassengerId = testing_p1$PassengerId, 
+                      Survived = testing_p1$Survived)
+
+write.csv(submit1, file = "prediction1.csv", row.names = FALSE)
+
+```
+
+# Preciction 2 - females survive
+```{r}
+summary(training$Sex)
+
+# shows the percentage out of the total number of passengers
+prop.table(table(training$Sex, training$Survived))
+
+# find row wise dimenisons (1) and the column wise dimensions (2)
+prop.table(table(training$Sex, training$Survived), 1)
+prop.table(table(training$Sex, training$Survived), 2)
+
+testing$Survived <- 0
+testing$Survived[testing$Sex == "female"] <- 1
+
+
+submit2 <- data.frame(PassengerId = testing$PassengerId, 
+                      Survived = testing$Survived)
+
+write.csv(submit2, file = "prediction2.csv", row.names = FALSE)
+
+```
+
+# Looking at ages
+```{r}
+library(tidyverse)
+training_p3 <- training %>%
+  mutate(Age_group =  ifelse(Age <18, "child", "adult"))
+
+prop.table(table(training_p3$Age_group, training_p3$Survived), 1)
+
+# this looks at the nubmer who survived
+aggregate(Survived ~ Age_group + Sex, data=training_p3, FUN=sum)
+
+# this looks at the total number in each group
+aggregate(Survived ~ Age_group + Sex, data=training_p3, FUN=length)
+
+# to get the proportions of survived/total 
+aggregate(Survived ~ Age_group + Sex, data=training_p3, FUN=function(x) {sum(x)/length(x)})
+```
+
+# Prediction 3- Tree fit
+```{r}
+library(rpart)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+
+tree_fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,
+               data=training,
+               method="class")
+
+fancyRpartPlot(tree_fit)
+
+prediction <- predict(tree_fit, testing, type = "class")
+submit3 <- data.frame(PassengerId = testing$PassengerId, Survived = prediction)
+write.csv(submit3, file = "prediction3.csv", row.names = FALSE)
+
+```
+
+# Looking at more decision trees
+```{r}
+# basically just saying that a minimum split of 2 people in each compartment and cp that deems how important splits are - this is to make the largest tree possible - overfit
+fit_large <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,
+               data=training,
+               method="class", 
+               control=rpart.control(minsplit=2, cp=0))
+
+fancyRpartPlot(fit_large)
+```
+
+
+# RAndom forest
+```{r}
+library(randomForest)
+randomForest(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare +
+                                            Embarked + title,
+                      data=training, 
+                      importance=TRUE, 
+                      ntree=2000)
+
+training$as.factor(Survived)
+```
+

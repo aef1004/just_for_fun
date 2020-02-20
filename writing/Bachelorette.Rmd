@@ -1,0 +1,49 @@
+---
+title: "Bachelorette"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+
+bachelorette_data <- read_csv("./Data/Bachelorette/bachelorette-contestants.csv") %>%
+  mutate(Last_Name = str_extract(Name, "\\s[A-Z]")) %>%
+  mutate(First_Name = str_replace(Name, "\\s[:alpha:]*", "")) %>%
+  mutate(Show = "Bachelorette",
+         First_Name = str_remove(First_Name, "\\.")) %>%
+  select(-Name)
+
+
+bachelorette_elimination <- read_csv("./Data/Bachelorette/bachelorette_elimination.csv", col_names = TRUE, skip = 1) %>%
+  rename(Show = SHOW,
+         Season = SEASON,
+         Name = ID) %>%
+  gather(key = week_elim, value = elimination, -Name, -Show, -Season, -"1_1", -"2_1", -"3_1", -"4_1", -"5_1", -"6_1", -"7_1", -"8_1", -"9_1", -"10_1") %>%
+  gather(key = week_rose, value = rose, -Name, -Show, -Season, -week_elim, -elimination) %>%
+  mutate(Name = str_replace(Name, "[0-9]*_", ""),
+         Name = str_to_title(Name),
+         First_Name = str_extract(Name, "[:alpha:]*_"),
+         Last_Name = str_extract(Name, "_[:alpha:]"),
+         First_Name = str_replace(First_Name, "_", ""),
+         Last_Name = str_replace(Last_Name, "_", ""),
+         Last_Name = str_to_upper(Last_Name),
+         Season = as.numeric(Season),
+         week_rose = str_replace(week_rose, "_[0-9]", "")) %>%
+  select(-Name, -week_rose) %>%
+  rename(week = week_elim)
+  
+
+full_join(bachelorette_elimination, bachelorette_data, by = c("First_Name", "Show", "Season"))
+  
+  ggplot(bachelorette_elimination, aes(x = rose, week)) +
+    geom_point()
+```
+
