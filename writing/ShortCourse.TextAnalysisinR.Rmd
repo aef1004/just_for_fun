@@ -477,6 +477,8 @@ Sentiment analysis is the process of computationally identifying and
 categorizing opinions expressed in a piece of text. The sentimentr
 package makes 'opinion mining' easy.
 
+Positive Sentiment = +
+Negative sentiment = -
 ```{r}
 sentiment('Sentiment analysis is super fun.')
 sentiment('I hate sentiment analysis.')
@@ -496,6 +498,7 @@ setting an array for books
 titles <- c("Philosopher's Stone", "Chamber of Secrets", "Prisoner of Azkaban",
             "Goblet of Fire", "Order of the Phoenix", "Half-Blood Prince",
             "Deathly Hallows")
+
 books <- list(philosophers_stone, chamber_of_secrets, prisoner_of_azkaban,
               goblet_of_fire, order_of_the_phoenix, half_blood_prince,
               deathly_hallows)
@@ -716,7 +719,7 @@ library(here)
 set.seed(123)
 theme_set(theme_minimal())
 
-hamilton <- read_csv(file = here("hamilton.csv")) %>%
+hamilton <- read_csv(file = "../data/hamilton.csv") %>%
   mutate(song_name = parse_factor(song_name))
 
 # calculate all pairs of words in the musical
@@ -836,6 +839,7 @@ plot below. These models predict the latent distribution of document
 topic probabilities to produce the best model. Read this output by
 seeing where the models intersect on each graph.
 
+The metrics are different options for determining the topics number (kinda like trying to optimize the number of clusters with Elbow or gap statistic methods)
 ```{r}
 result <- FindTopicsNumber(
   dtm,
