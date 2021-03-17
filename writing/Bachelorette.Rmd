@@ -14,20 +14,34 @@ library(stringr)
 library(tidyr)
 library(ggplot2)
 
-bachelorette_data <- read_csv("./Data/Bachelorette/bachelorette-contestants.csv") %>%
+bachelorette_data <- read_csv("../data/Bachelorette/bachelorette-contestants.csv") %>%
   mutate(Last_Name = str_extract(Name, "\\s[A-Z]")) %>%
   mutate(First_Name = str_replace(Name, "\\s[:alpha:]*", "")) %>%
   mutate(Show = "Bachelorette",
          First_Name = str_remove(First_Name, "\\.")) %>%
-  select(-Name)
+  select(-Name) %>%
+  mutate(ElimWeek = str_replace_na(ElimWeek, "Winner"))
 
 
-bachelorette_elimination <- read_csv("./Data/Bachelorette/bachelorette_elimination.csv", col_names = TRUE, skip = 1) %>%
+
+ggplot(bachelorette_data, aes(x = Age)) +
+  geom_density()
+
+ggplot(bachelorette_data, aes(x = ElimWeek, y = Age)) +
+  geom_point() 
+
+# 228 occupations - almost the # of contestants
+unique(bachelorette_data$Occupation)
+
+
+```
+
+```{r}
+bachelorette_elimination <- read_csv("../data/Bachelorette/bachelorette_elimination.csv", col_names = TRUE, skip = 1) %>%
   rename(Show = SHOW,
          Season = SEASON,
          Name = ID) %>%
-  gather(key = week_elim, value = elimination, -Name, -Show, -Season, -"1_1", -"2_1", -"3_1", -"4_1", -"5_1", -"6_1", -"7_1", -"8_1", -"9_1", -"10_1") %>%
-  gather(key = week_rose, value = rose, -Name, -Show, -Season, -week_elim, -elimination) %>%
+  filter(Show == "Bachelorette") %>%
   mutate(Name = str_replace(Name, "[0-9]*_", ""),
          Name = str_to_title(Name),
          First_Name = str_extract(Name, "[:alpha:]*_"),
@@ -35,15 +49,66 @@ bachelorette_elimination <- read_csv("./Data/Bachelorette/bachelorette_eliminati
          First_Name = str_replace(First_Name, "_", ""),
          Last_Name = str_replace(Last_Name, "_", ""),
          Last_Name = str_to_upper(Last_Name),
-         Season = as.numeric(Season),
-         week_rose = str_replace(week_rose, "_[0-9]", "")) %>%
-  select(-Name, -week_rose) %>%
-  rename(week = week_elim)
-  
+         Season = as.numeric(Season)) %>%
+  rename(week_1 = "1",
+         week_2 = "2",
+         week_3 = "3",
+         week_4 = "4",
+         week_5 = "5",
+         week_6 = "6",
+         week_7 = "7",
+         week_8 = "8",
+         week_9 = "9",
+         week_10 = "10") %>%
+  filter(Name != "Id")
 
-full_join(bachelorette_elimination, bachelorette_data, by = c("First_Name", "Show", "Season"))
+# seasons in each
+unique(bachelorette_data$Season)
+unique(bachelorette_elimination$Season)
+
+# look at the dates that the bachelors went on
+dates <- bachelorette_elimination %>%
+    select(Season, First_Name, Last_Name, "1_1", "2_1", "3_1", "4_1", "5_1", "6_1", "7_1", "8_1", "9_1", "10_1") %>%
+      gather(key = week, value = date_type,  -Season, -First_Name, -Last_Name) %>%
+    mutate(week = str_replace(week, "_1", ""),
+           date_type = str_replace_na(date_type, "no_date")) %>%
+  drop_na(First_Name)
   
-  ggplot(bachelorette_elimination, aes(x = rose, week)) +
-    geom_point()
+elimination <- bachelorette_elimination %>%
+  select(Season, First_Name, Last_Name, week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8, week_9, week_10, -Show, -Name) %>%
+    gather(key = week, value = elimination, -Season, -First_Name, -Last_Name) %>%
+  drop_na(First_Name) %>%
+  mutate(elimination = str_replace_na(elimination, "not_eliminated")) %>%
+  mutate(week = str_replace(week, "week_", ""))
+
+clean_elimination <- full_join(dates, elimination, by = c("Season", "First_Name", "Last_Name", "week"))
+
+clean_elimination
+
+```
+
+Note there is a problem with joining the data because the `bachelorette data` does not contain the last names of everyone
+
+Clean elimination has all of the last names
+
+```{r}
+# has a last name - 247 people
+has_last_name <- bachelorette_data %>%
+  drop_na(Last_Name)
+
+# does not have last name
+no_last_name <- bachelorette_data %>%
+  filter(is.na(Last_Name))
+
+all_data <- full_join(has_last_name, clean_elimination, by = c("Season", "First_Name", "Last_Name"))
+
+full_join(no_last_name, clean_elimination, by = c("Season", "First_Name")) %>%
+  select(-Last_Name.x)
+
+all_data %>%
+  filter(elimination == "W")
+
+ggplot(all_data, aes(x = Age, y = elimination)) +
+  geom_point()
 ```
 
